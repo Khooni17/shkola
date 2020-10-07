@@ -1,22 +1,20 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart';
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
-
-void main() {
+void main() async {
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        primarySwatch: Colors.green,  // цвет темы
+        primarySwatch: Colors.green,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: MyHomePage(title: 'Проверка баланса карты'),
@@ -26,9 +24,7 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
-
   final String title;
-
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
@@ -36,52 +32,55 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String _main = '';
   String _dop = '';
-  String cart = '69-001412';
+  String _cart = '';
+  TextEditingController _cartController = TextEditingController();
 
-
-  Future<List<String>> getInfo(String cartNumber) async {
-    final String url = 'http://xn--58-6kc3bfr2e.xn--p1ai/ajax/?card=$cartNumber&act=FreeCheckBalance';
+  Future<void> getInfo() async {
+    final String url =
+        'http://xn--58-6kc3bfr2e.xn--p1ai/ajax/?card=$_cart&act=FreeCheckBalance';
     Response r = await get(url);
 
-    if(r.statusCode == 200){
+    if (r.statusCode == 200) {
       final res = r.body.toString();
       var doc = parse(res);
       String main = '';
       String dop = '';
       try {
         main = doc.getElementsByTagName('span')[1].text;
-      } catch(e){
+      } catch (e) {
         main = '';
       }
 
       try {
         dop = doc.getElementsByTagName('span')[3].text;
-      } catch(e){
+      } catch (e) {
         dop = '';
       }
 
-      return [main, dop];
+      setState(() {
+        _main = main;
+        _dop = dop;
+      });
     } else {
-      return ['', ''];
+      setState(() {
+        _main = '';
+        _dop = '';
+      });
     }
   }
 
-  Future<String> getCartFromStorage() async{
+  Future<void> getCartFromStorage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String value = prefs.getString('cartNumber') ??  "69-001412";
-    return value;
+    _cart = prefs.getString('cart') ?? "69-001412";
   }
 
+  Future<void> saveCart(String s) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('cart', s);
+  }
 
   @override
   Widget build(BuildContext context) {
-
-    final TextEditingController cartController = TextEditingController();
-
-
-    cartController.text = cart;
-
-
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
@@ -93,7 +92,10 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             TextField(
-              controller: cartController,
+              onChanged: (String s) async {
+                //saveCart(s);
+              },
+              controller: _cartController,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
                 labelText: 'Номер карты',
@@ -118,27 +120,40 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async{
-          final List<String> res = await getInfo(cartController.text);
-          setState(() {
-            print(res);
-            _main = res[0];
-            _dop = res[1];
-          });
-        },
-        tooltip: 'Increment',
-        child: Icon(Icons.update),
-      ),
+      persistentFooterButtons: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            FlatButton(
+              onPressed: () async {
+                await getInfo();
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  new Icon(Icons.update),
+                  new Text('Обновить'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      onLoad(context);
+    });
+  }
 
-
-  void onLoad(BuildContext context) async{
-    //cart = await getCartFromStorage();
-  } //callback when layout build done
-
-
-
+  void onLoad(BuildContext context) async {
+    await getCartFromStorage();
+    setState(() {
+      _cartController.text = _cart;
+    });
+    await getInfo();
+  }
 }

@@ -26,6 +26,7 @@ dependencies:
   http:
   html:
   shared_preferences:
+  flutter_local_notifications: ^2.0.0
 
 
   # The following adds the Cupertino Icons font to your application.
