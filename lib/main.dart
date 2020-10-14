@@ -1,39 +1,123 @@
+import 'dart:typed_data';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart';
-import 'package:flutter/material.dart';
 import 'package:html/parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() async {
-  runApp(MyApp());
-}
+void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      home: LocalNotifications(),
       title: 'Flutter Demo',
       theme: ThemeData(
         primarySwatch: Colors.green,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: MyHomePage(title: 'Проверка баланса карты'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-  final String title;
+class LocalNotifications extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _LocalNotificationsState createState() => _LocalNotificationsState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _LocalNotificationsState extends State<LocalNotifications> {
   String _main = '';
   String _dop = '';
   String _cart = '';
   TextEditingController _cartController = TextEditingController();
+
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+  AndroidInitializationSettings androidInitializationSettings;
+  IOSInitializationSettings iosInitializationSettings;
+  InitializationSettings initializationSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    initializing();
+  }
+
+  void _showNotification() async {
+    await notificationSchedule();
+  }
+
+  void initializing() async {
+    androidInitializationSettings = AndroidInitializationSettings('app_icon');
+    iosInitializationSettings = IOSInitializationSettings(
+        onDidReceiveLocalNotification: onDidReceiveLocalNotification);
+    initializationSettings = InitializationSettings(
+        androidInitializationSettings, iosInitializationSettings);
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings,
+        onSelectNotification: onSelectNotification);
+  }
+
+  Future<void> notificationSchedule() async {
+    final Int64List vibrationPattern = Int64List(4);
+    vibrationPattern[0] = 0;
+    vibrationPattern[1] = 1000;
+    vibrationPattern[2] = 5000;
+    vibrationPattern[3] = 2000;
+
+
+    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+        'your other channel id',
+        'your other channel name',
+        'your other channel description',
+        vibrationPattern: vibrationPattern,
+        enableLights: true,
+        color: const Color.fromARGB(255, 255, 0, 0),
+        ledColor: const Color.fromARGB(255, 255, 0, 0),
+        ledOnMs: 1000,
+        ledOffMs: 500);
+    var iOSPlatformChannelSpecifics = IOSNotificationDetails();
+    NotificationDetails platformChannelSpecifics = NotificationDetails(
+        androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.show(
+        0,
+        'Hi there',
+        'Subscibe my youtube channel',
+        // scheduledNotificationDateTime,
+        platformChannelSpecifics);
+  }
+
+  // ignore: missing_return
+  Future onSelectNotification(String payLoad) {
+    if (payLoad != null) {
+      debugPrint("$payLoad");
+    }
+    //print("Notification Tab");
+  }
+
+  Future onDidReceiveLocalNotification(
+      int id, String title, String body, String payload) async {
+    return showDialog(
+        context: context,
+        builder: (
+          BuildContext context,
+        ) =>
+            CupertinoAlertDialog(
+              title: Text(title),
+              content: Text(body),
+              actions: <Widget>[
+                CupertinoDialogAction(
+                  isDefaultAction: true,
+                  child: Text("Okay"),
+                  onPressed: () {
+                    // naviagate to desire page
+                  },
+                )
+              ],
+            ));
+  }
 
   Future<void> getInfo() async {
     final String url =
@@ -42,6 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (r.statusCode == 200) {
       final res = r.body.toString();
+      //print(res);
       var doc = parse(res);
       String main = '';
       String dop = '';
@@ -85,7 +170,7 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text('Узнать баланс карты'),
       ),
       body: Center(
         child: Column(
@@ -93,7 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             TextField(
               onChanged: (String s) async {
-                //saveCart(s);
+                await saveCart(s);
               },
               controller: _cartController,
               decoration: InputDecoration(
@@ -125,7 +210,23 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
             FlatButton(
+              onPressed: () {
+                _showNotification();
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  new Icon(Icons.notifications),
+                  new Text('Уведомление'),
+                ],
+              ),
+            ),
+            FlatButton(
               onPressed: () async {
+                await getCartFromStorage();
+                setState(() {
+                  _cartController.text = _cart;
+                });
                 await getInfo();
               },
               child: Column(
@@ -140,20 +241,5 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ],
     );
-  }
-
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      onLoad(context);
-    });
-  }
-
-  void onLoad(BuildContext context) async {
-    await getCartFromStorage();
-    setState(() {
-      _cartController.text = _cart;
-    });
-    await getInfo();
   }
 }
