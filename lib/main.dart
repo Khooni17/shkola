@@ -6,8 +6,19 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart';
 import 'package:html/parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:android_alarm_manager/android_alarm_manager.dart';
 
-void main() => runApp(MyApp());
+
+
+void printHello() {
+  print("[] Hello, world! isolate=} function=printHello");
+}
+
+
+main() async {
+  runApp(MyApp());
+}
+
 
 class MyApp extends StatelessWidget {
   @override
@@ -46,6 +57,12 @@ class _LocalNotificationsState extends State<LocalNotifications> {
     initializing();
   }
 
+  Future<void> initAlarm() async {
+    await AndroidAlarmManager.initialize();
+    final int helloAlarmID = 0;
+    await AndroidAlarmManager.periodic(const Duration(seconds: 1), helloAlarmID, this._showNotification, exact: true, rescheduleOnReboot: true);
+  }
+
   void _showNotification() async {
     await notificationSchedule();
   }
@@ -56,6 +73,7 @@ class _LocalNotificationsState extends State<LocalNotifications> {
         onDidReceiveLocalNotification: onDidReceiveLocalNotification);
     initializationSettings = InitializationSettings(
         androidInitializationSettings, iosInitializationSettings);
+
     await flutterLocalNotificationsPlugin.initialize(initializationSettings,
         onSelectNotification: onSelectNotification);
   }
@@ -66,7 +84,6 @@ class _LocalNotificationsState extends State<LocalNotifications> {
     vibrationPattern[1] = 1000;
     vibrationPattern[2] = 5000;
     vibrationPattern[3] = 2000;
-
 
     var androidPlatformChannelSpecifics = AndroidNotificationDetails(
         'your other channel id',
@@ -83,8 +100,8 @@ class _LocalNotificationsState extends State<LocalNotifications> {
         androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
     await flutterLocalNotificationsPlugin.show(
         0,
-        'Hi there',
-        'Subscibe my youtube channel',
+        'Уведомление',
+        'Счет необходимо пополнить',
         // scheduledNotificationDateTime,
         platformChannelSpecifics);
   }
@@ -209,15 +226,28 @@ class _LocalNotificationsState extends State<LocalNotifications> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            FlatButton(
+            /*FlatButton(
               onPressed: () {
-                _showNotification();
+                _startMonitoring();
+                //_showNotification();
               },
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   new Icon(Icons.notifications),
-                  new Text('Уведомление'),
+                  new Text('Начать мониторинг'),
+                ],
+              ),
+            ),*/
+            FlatButton(
+              onPressed: () async {
+                await initAlarm();
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  new Icon(Icons.notifications),
+                  new Text('Начать мониторить'),
                 ],
               ),
             ),
@@ -243,3 +273,4 @@ class _LocalNotificationsState extends State<LocalNotifications> {
     );
   }
 }
+

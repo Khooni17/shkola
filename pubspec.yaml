@@ -22,6 +22,12 @@ dependencies:
   http:
   html:
   shared_preferences:
+  android_alarm_manager:
+  cron: 0.2.3
+  neat_periodic_task:
+  background_fetch:
+    git:
+      url: https://github.com/transistorsoft/flutter_background_fetch
 
   rxdart: ^ 0.24.1
   path_provider: ^ 1.6.11
